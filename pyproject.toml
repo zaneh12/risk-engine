@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "risk-engine"
 version = "0.1.0"
-description = "Fixed income risk engine practice project"
+description = "Fixed-income risk engine for pricing and risk analytics"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -18,4 +18,3 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
