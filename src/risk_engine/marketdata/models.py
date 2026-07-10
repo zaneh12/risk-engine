@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 
 
@@ -48,6 +48,20 @@ class YieldCurve:
                 return left.rate + weight * (right.rate - left.rate)
 
         return ordered[-1].rate
+
+    def bumped_parallel(self, bump_bps: float) -> "YieldCurve":
+        """Return a new curve with every rate shifted by the same number of bps."""
+
+        bumped_points = [
+            replace(point, rate=point.rate + bump_bps / 100.0)
+            for point in self.points
+        ]
+        return YieldCurve(
+            name=self.name,
+            points=bumped_points,
+            source=self.source,
+            as_of=self.as_of,
+        )
 
 
 @dataclass(slots=True)

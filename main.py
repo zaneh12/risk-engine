@@ -42,7 +42,7 @@ def main() -> None:
     from risk_engine.instruments import Bond
     from risk_engine.marketdata import FredMarketDataSource, DEFAULT_TREASURY_CURVE_SERIES
     from risk_engine.frontend import plot_curve
-    from risk_engine.services import price_instrument
+    from risk_engine.services import dv01, price_instrument
 
     source = FredMarketDataSource()
     curve = source.treasury_curve(series_map=DEFAULT_TREASURY_CURVE_SERIES)
@@ -64,9 +64,11 @@ def main() -> None:
 
     bond = Bond(issuer="Example Corp", face_value=100.0, coupon_rate=4.0, maturity_years=10, payment_frequency=1)
     bond_price = price_instrument(bond, curve)
+    bond_dv01 = dv01(bond, curve)
     print()
     print(f"Bond: {bond.issuer}, {bond.maturity_years}Y, {bond.coupon_rate:.2f}% coupon, FV {bond.face_value:.2f}")
     print(f"Model price: {bond_price:.4f}")
+    print(f"DV01: {bond_dv01:.6f}")
 
     plot_curve(curve, show=True)
 
