@@ -1,0 +1,69 @@
+"""Simple working entry point for local development.
+
+This file is intentionally the scratchpad for trying market-data ideas
+before they grow into reusable services in `src/risk_engine`.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+def load_dotenv(path: str | Path | None = None) -> None:
+    """Load a local .env file into the current process."""
+
+    env_path = Path(path) if path is not None else Path(__file__).resolve().parent / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+def main() -> None:
+    """Run a small market-data smoke test."""
+
+    root = Path(__file__).resolve().parent
+    # Add `src/` so we can import the package while still keeping a src layout.
+    sys.path.insert(0, str(root / "src"))
+
+    load_dotenv()
+
+    from risk_engine.marketdata import FredMarketDataSource, DEFAULT_TREASURY_CURVE_SERIES
+    from risk_engine.frontend import plot_curve
+
+    source = FredMarketDataSource()
+    curve = source.treasury_curve(series_map=DEFAULT_TREASURY_CURVE_SERIES)
+
+    if not curve.points:
+        print("No curve points were returned. Check your FRED_API_KEY and try again.")
+        return
+
+    print(f"As of: {curve.as_of}")
+    print(f"{curve.name} ({curve.source})")
+    for point in curve.points:
+        print(f"  {point.tenor}: {point.rate}")
+
+    if len(curve.points) >= 2:
+        short = next((point for point in curve.points if point.tenor == "2Y"), None)
+        long = next((point for point in curve.points if point.tenor == "10Y"), None)
+        if short is not None and long is not None:
+            spread = long.rate - short.rate
+            # This spread is the first quick sanity check we can read instantly.
+            print(f"  10Y minus 2Y spread: {spread}")
+
+    plot_curve(curve, show=True)
+
+
+if __name__ == "__main__":
+    main()
