@@ -76,13 +76,19 @@ Set a local FRED API key in `.env`:
 FRED_API_KEY=your_key_here
 ```
 
+Optionally set a bond identifier to try the SEC reference lookup path:
+
+```env
+BOND_IDENTIFIER=AAPL
+```
+
 Then run:
 
 ```bash
 python main.py
 ```
 
-The demo loads Treasury data, prints a curve summary, prices a sample bond, and opens the curve plot.
+The demo loads Treasury data, prints a curve summary, prices a sample bond or a bond discovered from SEC filings, and opens the curve plot.
 
 ## Design Principles
 
@@ -97,4 +103,3 @@ The demo loads Treasury data, prints a curve summary, prices a sample bond, and 
 - add DV01 for bonds and curve shifts
 - support semiannual coupon bonds and day-count conventions
 - expose the engine through an API layer for a future web application
-

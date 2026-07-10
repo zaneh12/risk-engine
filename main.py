@@ -43,6 +43,7 @@ def main() -> None:
     from risk_engine.marketdata import FredMarketDataSource, DEFAULT_TREASURY_CURVE_SERIES
     from risk_engine.frontend import plot_curve
     from risk_engine.services import dv01, price_instrument
+    from risk_engine.reference import SecBondReferenceSource
 
     source = FredMarketDataSource()
     curve = source.treasury_curve(series_map=DEFAULT_TREASURY_CURVE_SERIES)
@@ -62,11 +63,30 @@ def main() -> None:
         spread = long.rate - short.rate
         print(f"  10Y minus 2Y spread: {spread}")
 
-    bond = Bond(issuer="Example Corp", face_value=100.0, coupon_rate=4.0, maturity_years=10, payment_frequency=1)
+    bond_identifier = os.getenv("BOND_IDENTIFIER")
+    if bond_identifier:
+        ref_source = SecBondReferenceSource()
+        try:
+            bond_reference = ref_source.lookup(bond_identifier)
+        except LookupError as exc:
+            print()
+            print(f"Could not load a bond reference for {bond_identifier}: {exc}")
+            return
+        bond = bond_reference.to_bond()
+        print()
+        print(f"Loaded bond reference from {bond_reference.source}")
+        print(f"Issuer: {bond_reference.issuer}")
+        print(f"Description: {bond_reference.description}")
+        print(f"Coupon: {bond_reference.coupon_rate:.3f}%")
+        print(f"Maturity years: {bond_reference.maturity_years:.2f}")
+    else:
+        bond = Bond(issuer="Example Corp", face_value=100.0, coupon_rate=4.0, maturity_years=10, payment_frequency=2)
+        print()
+        print("No BOND_IDENTIFIER set, using a sample fixed-rate bond.")
+        print(f"Bond: {bond.issuer}, {bond.maturity_years}Y, {bond.coupon_rate:.2f}% coupon, FV {bond.face_value:.2f}")
+
     bond_price = price_instrument(bond, curve)
     bond_dv01 = dv01(bond, curve)
-    print()
-    print(f"Bond: {bond.issuer}, {bond.maturity_years}Y, {bond.coupon_rate:.2f}% coupon, FV {bond.face_value:.2f}")
     print(f"Model price: {bond_price:.4f}")
     print(f"DV01: {bond_dv01:.6f}")
 
