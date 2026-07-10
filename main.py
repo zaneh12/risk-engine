@@ -56,13 +56,11 @@ def main() -> None:
     for point in curve.points:
         print(f"  {point.tenor}: {point.rate}")
 
-    if len(curve.points) >= 2:
-        short = next((point for point in curve.points if point.tenor == "2Y"), None)
-        long = next((point for point in curve.points if point.tenor == "10Y"), None)
-        if short is not None and long is not None:
-            spread = long.rate - short.rate
-            # This spread is the first quick sanity check we can read instantly.
-            print(f"  10Y minus 2Y spread: {spread}")
+    short = next((point for point in curve.points if point.tenor == "2Y"), None)
+    long = next((point for point in curve.points if point.tenor == "10Y"), None)
+    if short is not None and long is not None:
+        spread = long.rate - short.rate
+        print(f"  10Y minus 2Y spread: {spread}")
 
     bond = Bond(issuer="Example Corp", face_value=100.0, coupon_rate=4.0, maturity_years=10, payment_frequency=1)
     bond_price = price_instrument(bond, curve)
