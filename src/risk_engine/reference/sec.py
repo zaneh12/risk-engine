@@ -31,14 +31,18 @@ MONTH_PATTERN = (
     r"(?:January|February|March|April|May|June|July|August|September|"
     r"October|November|December)"
 )
-DEBT_EXACT_DATE_PATTERN = re.compile(
-    rf"(?P<coupon>\d+(?:\.\d+)?)%\s+(?P<title>.+?)\s+due\s+(?:on\s+)?"
+DATE_VALUE_PATTERN = re.compile(
     rf"(?P<month>{MONTH_PATTERN})\s+(?P<day>\d{{1,2}}),\s+(?P<year>20\d{{2}})",
-    re.IGNORECASE | re.DOTALL,
+    re.IGNORECASE,
 )
 DEBT_YEAR_ONLY_PATTERN = re.compile(
     r"(?P<coupon>\d+(?:\.\d+)?)%\s+(?P<title>.+?)\s+due\s+(?P<year>20\d{2})",
     re.IGNORECASE | re.DOTALL,
+)
+MATURES_ON_PATTERN = re.compile(
+    rf"\b(?:maturity date|stated maturity date|mature(?:s|d)? on)\b[:\s|]*"
+    rf"(?P<date>{MONTH_PATTERN}\s+\d{{1,2}},\s+20\d{{2}})",
+    re.IGNORECASE,
 )
 
 
@@ -79,6 +83,17 @@ def _parse_maturity_date(match: re.Match[str]) -> date | None:
     return datetime.strptime(f"{month} {day}, {year}", "%B %d, %Y").date()
 
 
+def _find_maturity_date_in_context(text: str, _start: int, end: int) -> date | None:
+    """Look for an explicit maturity date near a note description."""
+
+    context = text[end : min(len(text), end + 2000)]
+    for pattern in (MATURES_ON_PATTERN, DATE_VALUE_PATTERN):
+        match = pattern.search(context)
+        if match is not None:
+            return _parse_maturity_date(match)
+    return None
+
+
 @lru_cache(maxsize=1)
 def _company_ticker_map() -> dict[str, int]:
     payload = _request_json(f"{SEC_BASE}/files/company_tickers.json", DEFAULT_USER_AGENT)
@@ -93,12 +108,13 @@ class SecBondReferenceSource:
     """Find bond reference data from SEC company filings."""
 
     user_agent: str = DEFAULT_USER_AGENT
+    preferred_maturity_years: float = 5.0
 
     def lookup(self, identifier: str) -> BondReference:
         offerings = self.find_recent_offerings(identifier)
         if not offerings:
             raise LookupError(f"No bond references found for {identifier}.")
-        return offerings[0]
+        return min(offerings, key=self._selection_key)
 
     def find_recent_offerings(self, identifier: str, *, max_filings: int = 12) -> list[BondReference]:
         """Return bond references from recent debt-offering filings."""
@@ -130,6 +146,13 @@ class SecBondReferenceSource:
 
         return results[:max_filings]
 
+    def _selection_key(self, reference: BondReference) -> tuple[float, int, float]:
+        """Prefer a representative fixed-rate issue instead of the first hit."""
+
+        maturity_distance = abs(reference.maturity_years - self.preferred_maturity_years)
+        exact_date_penalty = 0 if reference.maturity_date is not None else 1
+        return (maturity_distance, exact_date_penalty, -reference.maturity_years)
+
     def _resolve_cik(self, identifier: str) -> int:
         normalized = identifier.strip().upper()
         if normalized.isdigit():
@@ -144,35 +167,34 @@ class SecBondReferenceSource:
     def _extract_references(self, *, text: str, issuer: str, source_url: str, filing_date: date) -> list[BondReference]:
         refs: list[BondReference] = []
 
-        for pattern in (DEBT_EXACT_DATE_PATTERN, DEBT_YEAR_ONLY_PATTERN):
-            for match in pattern.finditer(text):
-                coupon = float(match.group("coupon"))
-                description = match.group("title").strip()
-                maturity_date = _parse_maturity_date(match)
-                if maturity_date is not None:
-                    maturity_years = (maturity_date - filing_date).days / 365.25
-                    if maturity_years <= 0:
-                        continue
-                else:
-                    maturity_year = int(match.group("year"))
-                    # SEC filing text usually gives only the maturity year, so we
-                    # estimate a midpoint maturity rather than collapsing same-year
-                    # notes to zero years.
-                    maturity_years = max(float(maturity_year - filing_date.year) + 0.5, 0.5)
+        for match in DEBT_YEAR_ONLY_PATTERN.finditer(text):
+            coupon = float(match.group("coupon"))
+            description = match.group("title").strip()
+            maturity_date = _find_maturity_date_in_context(text, match.start(), match.end())
+            if maturity_date is not None:
+                maturity_years = (maturity_date - filing_date).days / 365.25
+                if maturity_years <= 0:
+                    continue
+            else:
+                maturity_year = int(match.group("year"))
+                # SEC filing text usually gives only the maturity year, so we
+                # estimate a midpoint maturity rather than collapsing same-year
+                # notes to zero years.
+                maturity_years = max(float(maturity_year - filing_date.year) + 0.5, 0.5)
 
-                refs.append(
-                    BondReference(
-                        issuer=issuer,
-                        coupon_rate=coupon,
-                        maturity_years=maturity_years,
-                        maturity_date=maturity_date,
-                        payment_frequency=2,
-                        face_value=100.0,
-                        description=description,
-                        source="SEC EDGAR",
-                        source_url=source_url,
-                        as_of=filing_date,
-                    )
+            refs.append(
+                BondReference(
+                    issuer=issuer,
+                    coupon_rate=coupon,
+                    maturity_years=maturity_years,
+                    maturity_date=maturity_date,
+                    payment_frequency=2,
+                    face_value=100.0,
+                    description=description,
+                    source="SEC EDGAR",
+                    source_url=source_url,
+                    as_of=filing_date,
                 )
+            )
 
         return refs

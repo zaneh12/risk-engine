@@ -1,85 +1,73 @@
 # Risk Engine
 
-Fixed-income pricing and risk engine in Python.
+Fixed-income curve dashboard and pricing sandbox in Python.
 
-## Overview
+## What It Does
 
-This repository implements the core building blocks of a fixed-income analytics stack:
+This project turns live market data and SEC filing data into a compact fixed-income workflow:
 
-- market data ingestion from FRED Treasury series
-- curve construction and interpolation
-- bond pricing from discounted cash flows
-- curve visualization for analysis and review
+- pulls the U.S. Treasury curve from FRED
+- discovers bond reference issues from SEC filings
+- prices a plain fixed-rate bond off the Treasury curve
+- computes DV01 for that bond
+- renders a dashboard with the Treasury curve and a reference table of SEC bond terms
 
-The code is organized to separate market data, instrument models, analytics services, and presentation logic. That makes it straightforward to extend the engine from a local prototype into a service-backed application later.
+The key idea is simple: Treasury data gives you the rate curve, and SEC filings give you bond structure. Together, they make a useful local sandbox for pricing and relative-value exploration.
 
-## What It Demonstrates
+## Why This Exists
 
-The current implementation covers a minimal but realistic workflow:
+The repo is intentionally small, but it demonstrates a full fixed-income loop:
 
-1. pull Treasury curve data from FRED
-2. build a `YieldCurve` object from tenor/rate points
-3. interpolate spot rates across the curve
-4. price a plain fixed-rate bond
-5. visualize the curve with a dashboard-style plot
+- market data ingestion
+- domain models for bonds and curves
+- pricing and risk calculations
+- visualization and reporting
 
-## Core Math
+That makes it useful as a portfolio piece because the code is easy to follow, but the workflow is still realistic.
 
-The bond pricer uses standard discounted cash-flow logic:
+## Dashboard
 
-```text
-Price = sum_{t=1..N} CF_t / (1 + r_t)^t
-```
+![Fixed Income Curve Dashboard](docs/assets/readme-dashboard.png)
 
-Where:
+The chart shows:
 
-- `CF_t` is the cash flow at time `t`
-- `r_t` is the curve-implied spot rate for that maturity
-- `N` is the final payment period
+- the Treasury curve as the main line
+- a side-panel reference table of SEC bond coupon terms and maturities
+- a curve summary with the 2Y/10Y spread
 
-Curve values are interpolated between known tenors using linear interpolation:
+The SEC bond table is deliberately labeled as reference data. It is not a yield curve. It shows coupon, maturity, and description so the pricing model has context without pretending that coupons are market yields.
 
-```text
-r(x) = r_1 + (x - x_1) / (x_2 - x_1) * (r_2 - r_1)
-```
+## Example Output
 
-This is intentionally simple for the first version. It is a good baseline for learning, testing, and later replacing with a more sophisticated curve framework if needed.
-
-## Architecture
+Running the demo prints a short fixed-income snapshot like this:
 
 ```text
-src/risk_engine/
-  instruments/   # fixed-income instrument models
-  marketdata/    # curve models, benchmark series, source adapters
-  services/      # pricing, risk, and DV01 logic
-  frontend/      # plotting and presentation utilities
+Loaded Treasury curve from FRED.
+
+Loaded 12 bond coupon references from SEC EDGAR
+  1. coupon 0.300% | 0.50Y | n/a | Notes
+  2. coupon 1.250% | 1.50Y | n/a | Notes
+  3. coupon 3.375% | 1.50Y | n/a | Notes
+
+Representative issue
+  Issuer: INTERNATIONAL BUSINESS MACHINES CORP
+  Coupon: 0.300%
+  Maturity years: 0.50
+  Treasury spot at maturity: 3.980%
+  Coupon minus Treasury spot: -3.680%
+
+Model price: 98.2146
+DV01: 0.004723
 ```
 
-`main.py` is the working entry point used for local development, smoke tests, and quick experiments.
+## How To Run
 
-## Current Instrument Coverage
-
-- Fixed-rate bond
-- Treasury curve from FRED
-
-## Current Analytics
-
-- curve interpolation
-- bond pricing
-- spread calculation on the demo curve
-
-## Run It
-
-Set a local FRED API key in `.env`:
+Create a `.env` file in the project root with your API settings:
 
 ```env
-FRED_API_KEY=your_key_here
-```
-
-Optionally set a bond identifier to try the SEC reference lookup path:
-
-```env
-BOND_IDENTIFIER=AAPL
+FRED_API_KEY=your_fred_key_here
+SEC_USER_AGENT=risk-engine/0.1 (yourname@example.com)
+BOND_IDENTIFIER=IBM
 ```
 
 Then run:
@@ -88,18 +76,52 @@ Then run:
 python main.py
 ```
 
-The demo loads Treasury data, prints a curve summary, prices a sample bond or a bond discovered from SEC filings, and opens the curve plot.
+If `BOND_IDENTIFIER` is set, the app will:
 
-## Design Principles
+- fetch recent bond-related SEC filings for that issuer
+- print the extracted coupon references
+- choose a representative issue for pricing
+- write the dashboard image to `docs/assets/readme-dashboard.png`
+- open the Treasury dashboard
 
-- Keep domain models small and explicit.
-- Separate market data, pricing logic, and visualization.
-- Start with the simplest implementation that can still be extended cleanly.
-- Favor readable code over abstraction for its own sake.
+## Good Identifiers To Try
 
-## Next Steps
+These issuers usually produce cleaner SEC debt references than a noisy equity ticker:
 
-- add clean price vs. dirty price
-- add DV01 for bonds and curve shifts
-- support semiannual coupon bonds and day-count conventions
-- expose the engine through an API layer for a future web application
+- `IBM`
+- `MSFT`
+- `ORCL`
+- `CRM`
+- `USB`
+- `DE`
+
+## Repo Layout
+
+```text
+src/risk_engine/
+  instruments/   # bond and rate instrument models
+  marketdata/    # yield curve models and source adapters
+  reference/     # SEC bond reference discovery
+  services/      # pricing and DV01 logic
+  frontend/      # plotting and presentation helpers
+```
+
+`main.py` is the local demo entry point. It is designed to be read, run, and modified quickly.
+
+## Current Limits
+
+This is still a reference-and-pricing sandbox, not a production bond analytics stack.
+
+- SEC data is used for coupon and maturity reference data, not traded bond yields
+- the pricer assumes a plain fixed-rate bond
+- the curve logic uses a simple spot-rate model
+
+Those limits are intentional. They keep the project understandable while still leaving room for future upgrades.
+
+## Next Up
+
+- add clean price versus dirty price
+- support real bond yield or spread inputs
+- improve SEC parsing for more exact maturity extraction
+- add a report export so the dashboard can be shared as a static artifact
+
