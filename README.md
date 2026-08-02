@@ -1,68 +1,80 @@
 # Risk Engine
 
-Fixed-income curve dashboard and pricing sandbox in Python.
+Fixed-income analytics sandbox with an interactive MBS prepayment lab.
 
 ## What It Does
 
-This project turns live market data and SEC filing data into a compact fixed-income workflow:
+This project combines three pieces that matter on a fixed-income desk:
 
-- pulls the U.S. Treasury curve from FRED
-- discovers bond reference issues from SEC filings
-- prices a plain fixed-rate bond off the Treasury curve
-- computes DV01 for that bond
-- renders a dashboard with the Treasury curve and a reference table of SEC bond terms
+- Treasury curve ingestion from FRED
+- bond reference discovery from SEC filings
+- mortgage-backed securities scenario analysis with live controls
 
-The key idea is simple: Treasury data gives you the rate curve, and SEC filings give you bond structure. Together, they make a useful local sandbox for pricing and relative-value exploration.
+The highlight is the MBS Prepayment Lab. It lets you stress a mortgage pool against the Treasury curve and see how PSA, refinance incentive, and discount spread affect projected cash flows, PV, and WAL.
 
-## Why This Exists
+## MBS Prepayment Lab
 
-The repo is intentionally small, but it demonstrates a full fixed-income loop:
+![MBS Prepayment Lab Preview](docs/assets/mbs-prepayment-lab-preview.svg)
 
-- market data ingestion
-- domain models for bonds and curves
-- pricing and risk calculations
-- visualization and reporting
+The interactive dashboard is generated locally as:
 
-That makes it useful as a portfolio piece because the code is easy to follow, but the workflow is still realistic.
+- [docs/assets/mbs-prepayment-lab.html](docs/assets/mbs-prepayment-lab.html)
 
-## Dashboard
+It includes:
+
+- sliders for UPB, WAC, remaining term, seasoning, PSA, market rate, discount spread, and refinance sensitivity
+- live projection of balance burn-down and monthly cash flow
+- PV and WAL outputs
+- a 12-month schedule table
+- a Treasury-curve anchor so the scenario is tied to market data instead of being a standalone toy
+
+This is designed to feel relevant to an MBS desk because it answers the questions people actually ask:
+
+- what happens if rates rally?
+- how quickly does the pool pay down under a higher PSA?
+- what is the value of the pool against the current curve?
+- how sensitive is the profile to refinance incentive?
+
+## Treasury Dashboard
+
+The repo also keeps a cleaner fixed-income curve dashboard for the Treasury side of the workflow.
 
 ![Fixed Income Curve Dashboard](docs/assets/readme-dashboard.png)
 
-The chart shows:
+That view shows:
 
-- the Treasury curve as the main line
-- a side-panel reference table of SEC bond coupon terms and maturities
-- a curve summary with the 2Y/10Y spread
+- the Treasury curve from FRED
+- a curve summary panel
+- the bond reference output used for pricing and DV01
 
-The SEC bond table is deliberately labeled as reference data. It is not a yield curve. It shows coupon, maturity, and description so the pricing model has context without pretending that coupons are market yields.
+## Example Run
 
-## Example Output
+Default mode:
 
-Running the demo prints a short fixed-income snapshot like this:
+```bash
+python main.py
+```
+
+MBS lab mode:
+
+```bash
+python main.py --mbs-lab
+```
+
+Typical output from the MBS lab looks like:
 
 ```text
-Loaded Treasury curve from FRED.
-
-Loaded 12 bond coupon references from SEC EDGAR
-  1. coupon 0.300% | 0.50Y | n/a | Notes
-  2. coupon 1.250% | 1.50Y | n/a | Notes
-  3. coupon 3.375% | 1.50Y | n/a | Notes
-
-Representative issue
-  Issuer: INTERNATIONAL BUSINESS MACHINES CORP
-  Coupon: 0.300%
-  Maturity years: 0.50
-  Treasury spot at maturity: 3.980%
-  Coupon minus Treasury spot: -3.680%
-
-Model price: 98.2146
-DV01: 0.004723
+Built the MBS Prepayment Lab.
+Interactive dashboard: docs/assets/mbs-prepayment-lab.html
+Preview graphic: docs/assets/mbs-prepayment-lab-preview.svg
+PV: 102384477.92
+WAL: 4.81 years
+Ending balance: 0.00
 ```
 
 ## How To Run
 
-Create a `.env` file in the project root with your API settings:
+Create a `.env` file in the project root:
 
 ```env
 FRED_API_KEY=your_fred_key_here
@@ -70,58 +82,55 @@ SEC_USER_AGENT=risk-engine/0.1 (yourname@example.com)
 BOND_IDENTIFIER=IBM
 ```
 
-Then run:
+Useful optional MBS lab inputs:
 
-```bash
-python main.py
+```env
+MBS_UPB=100000000
+MBS_WAC=5.500
+MBS_TERM_MONTHS=300
+MBS_SEASONING_MONTHS=24
+MBS_PSA=100
+MBS_MARKET_RATE=4.750
+MBS_DISCOUNT_SPREAD_BPS=25
+MBS_REFI_SLOPE_CPR=8
 ```
 
-If `BOND_IDENTIFIER` is set, the app will:
+## Why It Matters
 
-- fetch recent bond-related SEC filings for that issuer
-- print the extracted coupon references
-- choose a representative issue for pricing
-- write the dashboard image to `docs/assets/readme-dashboard.png`
-- open the Treasury dashboard
+This is no longer just a boilerplate bond pricer. It now demonstrates:
 
-## Good Identifiers To Try
+- market data ingestion
+- reference data extraction
+- pricing and DV01
+- MBS scenario analysis
+- interactive dashboard generation
 
-These issuers usually produce cleaner SEC debt references than a noisy equity ticker:
-
-- `IBM`
-- `MSFT`
-- `ORCL`
-- `CRM`
-- `USB`
-- `DE`
+That combination reads much more like a desk-facing prototype than a generic tutorial project.
 
 ## Repo Layout
 
 ```text
 src/risk_engine/
-  instruments/   # bond and rate instrument models
+  instruments/   # bonds, mortgages, treasuries, swaps
   marketdata/    # yield curve models and source adapters
   reference/     # SEC bond reference discovery
-  services/      # pricing and DV01 logic
-  frontend/      # plotting and presentation helpers
+  services/      # pricing, DV01, and MBS scenario logic
+  frontend/      # plotting and dashboard generation
 ```
-
-`main.py` is the local demo entry point. It is designed to be read, run, and modified quickly.
 
 ## Current Limits
 
-This is still a reference-and-pricing sandbox, not a production bond analytics stack.
+This is still a prototype, so a few shortcuts remain:
 
-- SEC data is used for coupon and maturity reference data, not traded bond yields
-- the pricer assumes a plain fixed-rate bond
-- the curve logic uses a simple spot-rate model
+- SEC data is used for bond reference terms, not traded bond yields
+- the mortgage lab uses a deterministic PSA-style prepayment model
+- the discounting logic is a simplified scenario model, not a full stochastic OAS engine
 
-Those limits are intentional. They keep the project understandable while still leaving room for future upgrades.
+Those choices keep the repo understandable while still making the feature useful and desk-relevant.
 
 ## Next Up
 
-- add clean price versus dirty price
-- support real bond yield or spread inputs
-- improve SEC parsing for more exact maturity extraction
-- add a report export so the dashboard can be shared as a static artifact
-
+- add tranche-level MBS support
+- add a scenario comparison view
+- export the MBS dashboard as a standalone HTML report bundle
+- add spread duration / convexity for the mortgage pool

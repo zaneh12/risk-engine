@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-label="MBS scenario preview">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7fafc"/>
+      <stop offset="100%" stop-color="#eef2f7"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1200" height="640" rx="24" fill="url(#bg)"/>
+  <text x="80" y="42" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#132238">MBS Prepayment Lab Preview</text>
+  <text x="80" y="66" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="14" fill="#536271">Static preview for the README. The interactive dashboard recalculates these values live.</text>
+  <g stroke="#d9e1ea" stroke-width="1">
+    <line x1="80" y1="72" x2="80" y2="432"/>
+    <line x1="80" y1="432" x2="1160" y2="432"/>
+  </g>
+  <polyline fill="none" stroke="#0f4c81" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="80.0,76.0 98.3,80.1 116.6,84.2 134.9,88.4 153.2,92.6 171.5,96.9 189.8,101.1 208.1,105.3 226.4,109.4 244.7,113.6 263.1,117.7 281.4,121.8 299.7,125.9 318.0,129.9 336.3,133.9 354.6,137.9 372.9,141.9 391.2,145.8 409.5,149.7 427.8,153.6 446.1,157.5 464.4,161.4 482.7,165.2 501.0,169.0 519.3,172.8 537.6,176.5 555.9,180.3 574.2,184.0 592.5,187.7 610.8,191.3 629.2,195.0 647.5,198.6 665.8,202.2 684.1,205.8 702.4,209.4 720.7,212.9 739.0,216.4 757.3,219.9 775.6,223.4 793.9,226.8 812.2,230.3 830.5,233.7 848.8,237.1 867.1,240.4 885.4,243.8 903.7,247.1 922.0,250.4 940.3,253.7 958.6,257.0 976.9,260.2 995.3,263.4 1013.6,266.7 1031.9,269.8 1050.2,273.0 1068.5,276.2 1086.8,279.3 1105.1,282.4 1123.4,285.5 1141.7,288.6 1160.0,291.6"/>
+  <polyline fill="none" stroke="#c47f00" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="80.0,79.2 98.3,77.5 116.6,76.0 134.9,74.5 153.2,73.2 171.5,72.0 189.8,74.8 208.1,77.6 226.4,80.4 244.7,83.1 263.1,85.9 281.4,88.6 299.7,91.3 318.0,94.0 336.3,96.6 354.6,99.3 372.9,101.9 391.2,104.6 409.5,107.2 427.8,109.8 446.1,112.3 464.4,114.9 482.7,117.4 501.0,120.0 519.3,122.5 537.6,125.0 555.9,127.5 574.2,129.9 592.5,132.4 610.8,134.8 629.2,137.2 647.5,139.6 665.8,142.0 684.1,144.4 702.4,146.8 720.7,149.1 739.0,151.5 757.3,153.8 775.6,156.1 793.9,158.4 812.2,160.7 830.5,162.9 848.8,165.2 867.1,167.4 885.4,169.7 903.7,171.9 922.0,174.1 940.3,176.3 958.6,178.4 976.9,180.6 995.3,182.7 1013.6,184.9 1031.9,187.0 1050.2,189.1 1068.5,191.2 1086.8,193.3 1105.1,195.3 1123.4,197.4 1141.7,199.4 1160.0,201.5" opacity="0.92"/>
+  <g fill="#4b5a6a" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="12">
+    <text x="18" y="82">$100,000,000</text>
+    <text x="18" y="428">$0</text>
+    <text x="80" y="454">Month 1</text>
+    <text x="1100" y="454">Final Month</text>
+    <rect x="80" y="466" width="14" height="14" fill="#0f4c81"/><text x="102" y="478">Outstanding balance</text>
+    <rect x="300" y="466" width="14" height="14" fill="#c47f00"/><text x="322" y="478">Monthly cash flow</text>
+  </g>
+  <g font-family="Inter, Segoe UI, Arial, sans-serif" font-size="14" fill="#132238">
+    <text x="80" y="596">PV: $93,998,770</text>
+    <text x="310" y="596">WAL: 4.26 years</text>
+    <text x="510" y="596">Ending balance: $0</text>
+    <text x="790" y="596">PSA: 100</text>
+  </g>
+</svg>
