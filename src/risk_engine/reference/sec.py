@@ -8,7 +8,10 @@ filings, and extracts note terms from the filing text.
 from __future__ import annotations
 
 import json
+import gzip
 import re
+import os
+import zlib
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import lru_cache
@@ -18,29 +21,62 @@ from .models import BondReference
 
 SEC_BASE = "https://www.sec.gov"
 SEC_DATA_BASE = "https://data.sec.gov"
-DEFAULT_USER_AGENT = "risk-engine/0.1 (contact: local-development)"
+DEFAULT_USER_AGENT = os.getenv(
+    "SEC_USER_AGENT",
+    "risk-engine/0.1 (contact: set SEC_USER_AGENT)",
+)
 
 FILING_FORMS = {"8-K", "424B2", "424B5", "S-3", "S-3ASR", "424B3"}
-DEBT_TITLE_PATTERN = re.compile(
+MONTH_PATTERN = (
+    r"(?:January|February|March|April|May|June|July|August|September|"
+    r"October|November|December)"
+)
+DEBT_EXACT_DATE_PATTERN = re.compile(
+    rf"(?P<coupon>\d+(?:\.\d+)?)%\s+(?P<title>.+?)\s+due\s+(?:on\s+)?"
+    rf"(?P<month>{MONTH_PATTERN})\s+(?P<day>\d{{1,2}}),\s+(?P<year>20\d{{2}})",
+    re.IGNORECASE | re.DOTALL,
+)
+DEBT_YEAR_ONLY_PATTERN = re.compile(
     r"(?P<coupon>\d+(?:\.\d+)?)%\s+(?P<title>.+?)\s+due\s+(?P<year>20\d{2})",
-    re.IGNORECASE,
+    re.IGNORECASE | re.DOTALL,
 )
 
 
 def _request_json(url: str, user_agent: str) -> dict:
     request = Request(url, headers={"User-Agent": user_agent, "Accept-Encoding": "gzip, deflate"})
     with urlopen(request) as response:
-        return json.loads(response.read().decode("utf-8"))
+        body = response.read()
+        encoding = response.headers.get("Content-Encoding", "").lower()
+        if encoding == "gzip":
+            body = gzip.decompress(body)
+        elif encoding == "deflate":
+            body = zlib.decompress(body)
+        return json.loads(body.decode("utf-8"))
 
 
 def _request_text(url: str, user_agent: str) -> str:
     request = Request(url, headers={"User-Agent": user_agent, "Accept-Encoding": "gzip, deflate"})
     with urlopen(request) as response:
-        return response.read().decode("utf-8", errors="replace")
+        body = response.read()
+        encoding = response.headers.get("Content-Encoding", "").lower()
+        if encoding == "gzip":
+            body = gzip.decompress(body)
+        elif encoding == "deflate":
+            body = zlib.decompress(body)
+        return body.decode("utf-8", errors="replace")
 
 
 def _parse_date(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+def _parse_maturity_date(match: re.Match[str]) -> date | None:
+    month = match.groupdict().get("month")
+    day = match.groupdict().get("day")
+    year = match.groupdict().get("year")
+    if not (month and day and year):
+        return None
+    return datetime.strptime(f"{month} {day}, {year}", "%B %d, %Y").date()
 
 
 @lru_cache(maxsize=1)
@@ -106,26 +142,37 @@ class SecBondReferenceSource:
         raise LookupError(f"Unable to resolve SEC CIK for {identifier}.")
 
     def _extract_references(self, *, text: str, issuer: str, source_url: str, filing_date: date) -> list[BondReference]:
-        matches = list(DEBT_TITLE_PATTERN.finditer(text))
         refs: list[BondReference] = []
 
-        for match in matches:
-            coupon = float(match.group("coupon"))
-            maturity_year = int(match.group("year"))
-            maturity_years = max(float(maturity_year - filing_date.year), 0.0)
-            description = match.group("title").strip()
-            refs.append(
-                BondReference(
-                    issuer=issuer,
-                    coupon_rate=coupon,
-                    maturity_years=maturity_years,
-                    payment_frequency=2,
-                    face_value=100.0,
-                    description=description,
-                    source="SEC EDGAR",
-                    source_url=source_url,
-                    as_of=filing_date,
+        for pattern in (DEBT_EXACT_DATE_PATTERN, DEBT_YEAR_ONLY_PATTERN):
+            for match in pattern.finditer(text):
+                coupon = float(match.group("coupon"))
+                description = match.group("title").strip()
+                maturity_date = _parse_maturity_date(match)
+                if maturity_date is not None:
+                    maturity_years = (maturity_date - filing_date).days / 365.25
+                    if maturity_years <= 0:
+                        continue
+                else:
+                    maturity_year = int(match.group("year"))
+                    # SEC filing text usually gives only the maturity year, so we
+                    # estimate a midpoint maturity rather than collapsing same-year
+                    # notes to zero years.
+                    maturity_years = max(float(maturity_year - filing_date.year) + 0.5, 0.5)
+
+                refs.append(
+                    BondReference(
+                        issuer=issuer,
+                        coupon_rate=coupon,
+                        maturity_years=maturity_years,
+                        maturity_date=maturity_date,
+                        payment_frequency=2,
+                        face_value=100.0,
+                        description=description,
+                        source="SEC EDGAR",
+                        source_url=source_url,
+                        as_of=filing_date,
+                    )
                 )
-            )
 
         return refs

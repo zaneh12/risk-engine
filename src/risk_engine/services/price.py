@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import math
+from datetime import date
+
 from risk_engine.instruments.bonds import Bond
 from risk_engine.marketdata.models import YieldCurve
 
@@ -15,17 +18,23 @@ def _discount_factor(rate: float, years: float) -> float:
 def price_bond(bond: Bond, curve: YieldCurve) -> float:
     """Price a plain fixed-rate bond off a spot curve."""
 
-    if bond.maturity_years <= 0:
+    if bond.maturity_date is not None:
+        valuation_date = curve.as_of or date.today()
+        maturity_years = (bond.maturity_date - valuation_date).days / 365.25
+    else:
+        maturity_years = bond.maturity_years
+
+    if maturity_years <= 0:
         raise ValueError("Bond maturity_years must be positive.")
     if bond.payment_frequency <= 0:
         raise ValueError("Bond payment_frequency must be positive.")
 
     coupon_per_period = bond.face_value * (bond.coupon_rate / 100.0) / bond.payment_frequency
-    periods = int(bond.maturity_years * bond.payment_frequency)
+    periods = max(1, math.floor(maturity_years * bond.payment_frequency))
     price = 0.0
 
     for period in range(1, periods + 1):
-        years = period / bond.payment_frequency
+        years = maturity_years if period == periods else period / bond.payment_frequency
         spot_rate = curve.rate_for_years(years)
         cashflow = coupon_per_period
         if period == periods:

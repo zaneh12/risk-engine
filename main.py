@@ -78,6 +78,8 @@ def main() -> None:
         print(f"Issuer: {bond_reference.issuer}")
         print(f"Description: {bond_reference.description}")
         print(f"Coupon: {bond_reference.coupon_rate:.3f}%")
+        if bond_reference.maturity_date is not None:
+            print(f"Maturity date: {bond_reference.maturity_date.isoformat()}")
         print(f"Maturity years: {bond_reference.maturity_years:.2f}")
     else:
         bond = Bond(issuer="Example Corp", face_value=100.0, coupon_rate=4.0, maturity_years=10, payment_frequency=2)

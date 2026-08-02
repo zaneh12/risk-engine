@@ -16,6 +16,7 @@ class BondReference:
     issuer: str
     coupon_rate: float
     maturity_years: float
+    maturity_date: date | None = None
     payment_frequency: int = 2
     face_value: float = 100.0
     identifier: str | None = None
@@ -32,6 +33,7 @@ class BondReference:
             face_value=self.face_value,
             coupon_rate=self.coupon_rate,
             maturity_years=self.maturity_years,
+            maturity_date=self.maturity_date,
             payment_frequency=self.payment_frequency,
         )
 
@@ -42,4 +44,3 @@ class BondReferenceSource(Protocol):
     def lookup(self, identifier: str) -> BondReference:
         """Return a bond reference for the supplied identifier."""
         raise NotImplementedError
-
